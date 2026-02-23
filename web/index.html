@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfyUI Asset Manager</title>
+    <link rel="stylesheet" href="/assetmanager/static/css/base.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/navbar.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/generate.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/style.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/gallery.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/library-inputs.css">
+</head>
+
+<body>
+
+    <div class="navbar">
+        <div class="nav-left">
+            <button class="tab-btn" onclick="openTab('tab-checkpoint', this)">체크포인트</button>
+            <button class="tab-btn" onclick="openTab('tab-lora', this)">로라</button>
+            <button class="tab-btn" onclick="openTab('tab-gallery', this)">갤러리</button>
+            <button class="tab-btn" onclick="openTab('tab-prompt', this)">프롬프트 라이브러리</button>
+            <button class="tab-btn" onclick="openTab('tab-generate', this)">이미지 생성</button>
+            <div class="dropdown">
+                <button class="dropdown-btn">🛠️ 도구 ▼</button>
+                <div class="dropdown-content">
+                    <button class="tab-btn" onclick="openTab('tab-tools-metadata', this)">🔍 메타데이터 뷰어</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-censor', this)">🔍 단독 검열기</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-resizer', this)">✂️ 퀵 리사이저</button>
+                </div>
+            </div>
+        </div>
+        <div class="nav-right">
+            <button class="icon-btn tab-btn" onclick="openTab('tab-settings', this)" title="설정">⚙️</button>
+        </div>
+    </div>
+
+    <div id="context-menu">
+        <div onclick="openFolder()">📂 해당 폴더 열기</div>
+        <div onclick="showImageProperties()">ℹ️ 이미지 속성 보기</div>
+        <div onclick="sendToGenerateFromGallery()"
+            style="color: #4CAF50; border-top: 1px solid #444; padding-top: 8px; margin-top: 5px;">🪄 이 설정으로 생성</div>
+        <div onclick="deleteContextImage()"
+            style="color: #ff5555; border-top: 1px solid #444; padding-top: 8px; margin-top: 5px;">🗑️ 이미지 삭제</div>
+    </div>
+
+    <div id="lightbox" onclick="closeLightbox()">
+        <span class="close-btn">&times;</span>
+        <img id="lightbox-img" src="" onclick="event.stopPropagation()">
+    </div>
+
+    <div id="metadata-modal" class="modal-overlay" onclick="closeMetadataModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 style="margin: 0; color: #4CAF50;">📄 이미지 생성 정보</h3>
+                <span class="close-btn" style="position: static; font-size: 1.5em; color: #ff5555;"
+                    onclick="closeMetadataModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="metadata-body"></div>
+        </div>
+    </div>
+
+    <!-- 모델 정보 팝업 모달 -->
+    <div id="model-info-modal" class="modal-overlay" style="display:none;" onclick="closeModelInfoModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="model-info-title" style="margin: 0; color: #4CAF50;">모델 정보</h3>
+                <span class="close-btn" style="position: static; font-size: 1.5em; color: #ff5555;"
+                    onclick="closeModelInfoModal()">&times;</span>
+            </div>
+            <div id="model-info-body" class="modal-body">
+                <!-- 내용이 동적으로 삽입됨 -->
+                로딩 중...
+            </div>
+        </div>
+    </div>
+
+    <!-- 프롬프트 편집 팝업 모달 (Phase 8) -->
+    <div id="prompt-edit-modal" class="modal-overlay" style="display:none;" onclick="closePromptEditModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 style="margin: 0; color: #4CAF50;">✏️ 프롬프트 조각 편집</h3>
+                <span class="close-btn" style="position: static; font-size: 1.5em; color: #ff5555;"
+                    onclick="closePromptEditModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 15px;">
+                <input type="hidden" id="edit-prompt-original-id">
+                <div class="form-group" style="margin: 0;">
+                    <label>표시 이름 (Name)</label>
+                    <input type="text" id="edit-prompt-name" placeholder="예: 엠버린_평상복_01">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label>고유 식별자 (ID)</label>
+                    <input type="text" id="edit-prompt-id" placeholder="예: outfit_amb_01">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label>프롬프트 내용 (Value)</label>
+                    <textarea id="edit-prompt-value" rows="4" placeholder="1girl, casual wear..."></textarea>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label>부모 제약 조건 (Requires IDs - 쉼표 구분)</label>
+                    <input type="text" id="edit-prompt-requires" placeholder="예: char_amberin, pose_standing">
+                    <p style="font-size: 0.8em; color: #aaa; margin-top: 5px;">* 비워두면 조건 없이 항상 표시됩니다.</p>
+                </div>
+                <button class="btn-primary" onclick="savePromptEditModal()" style="padding: 12px; margin-top: 10px;">저장
+                    및 적용</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="content full-screen" id="main-content">
+        <div id="tab-generate" class="tab-panel">
+
+            <div id="gen-left" class="gen-left">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">이미지 생성</h2>
+
+                    <div class="mode-switch">
+                        <input type="radio" id="mode-single" name="gen-mode" value="single" checked
+                            onchange="toggleGenMode()">
+                        <label for="mode-single">단일 생성</label>
+                        <input type="radio" id="mode-batch" name="gen-mode" value="batch" onchange="toggleGenMode()">
+                        <label for="mode-batch">배치(대량) 큐</label>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>1. 공통 환경 설정 (Global Settings)</h3>
+                    <div class="form-group" style="display:flex; align-items:center; gap: 8px;">
+                        <label style="margin:0; width: 100px;">체크포인트:</label>
+                        <select id="gen-checkpoint" style="flex:1;">
+                            <option>모델 로딩 중...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>로라 (LoRA) 다중 선택</label>
+                        <button class="btn-secondary" onclick="addLoraRow()" style="margin-bottom: 10px;">+ 로라
+                            추가</button>
+                        <div id="selected-loras"></div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>2. 베이스 프롬프트 (Base Prompts)</h3>
+                    <p style="font-size: 0.8em; color: #aaa; margin-top: -10px;">단일 생성과 배치 생성 모두에 기본으로 깔리는 프롬프트입니다.</p>
+                    <div class="form-group"><label>공통 긍정 (Positive)</label><textarea id="base-pos"
+                            placeholder="masterpiece, best quality..."></textarea></div>
+                    <div class="form-group"><label>공통 부정 (Negative)</label><textarea id="base-neg"
+                            placeholder="worst quality, low quality..."></textarea></div>
+                </div>
+
+                <div class="form-section">
+                    <h3>3. 후처리 옵션 (Post-Processing)</h3>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-upscale" onchange="toggleSubOptions('upscale-opts', this)">
+                        <label for="toggle-upscale" style="font-weight: bold; cursor: pointer;">업스케일링 적용
+                            (Upscale)</label>
+                    </div>
+                    <div id="upscale-opts" class="sub-options" style="display: none;">
+                        <div class="option-row"><label>배율 (Scale)</label><input type="number" id="upscale-scale"
+                                step="0.5" value="1.5" min="1.0"></div>
+                        <div class="option-row" style="display:flex; align-items:center; gap: 8px;">
+                            <label style="margin:0; width: 100px;">업스케일러 모델</label>
+                            <select id="upscale-model" style="flex:1;">
+                                <option value="4x-UltraSharp.pth">4x-UltraSharp</option>
+                                <option value="ESRGAN\4x_NMKD-Siax_200k.pth">ESRGAN 4x Siax</option>
+                                <option value="ESRGAN\2x-AnimeSharpV4_Fast_RCAN_PU.safetensors">2x-AnimeSharp</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-detailer" onchange="toggleSubOptions('detailer-opts', this)">
+                        <label for="toggle-detailer" style="font-weight: bold; cursor: pointer;">디테일러 적용
+                            (ADetailer)</label>
+                    </div>
+                    <div id="detailer-opts" class="sub-options" style="display: none;">
+                        <div class="option-row"><label><input type="checkbox" id="detailer-face-toggle" checked> 얼굴
+                                (Face)</label><select id="detailer-face-model">
+                                <option value="bbox/face_yolov8m.pt">face_yolov8m</option>
+                                <option value="bbox/face_yolov8n.pt">face_yolov8n</option>
+                                <option value="bbox/face_yolov8s.pt">face_yolov8s</option>
+                            </select></div>
+                        <div class="option-row"><label><input type="checkbox" id="detailer-eye-toggle" checked> 눈
+                                (Eyes)</label><select id="detailer-eye-model">
+                                <option value="segm/PitEyeDetailer-v2-seg.pt">PitEyeDetailer-v2</option>
+                                <option value="bbox/eyeful_v0.pt">eyeful_v0</option>
+                            </select></div>
+                        <div class="option-row"><label><input type="checkbox" id="detailer-mouth-toggle"> 입
+                                (Mouth)</label><select id="detailer-mouth-model">
+                                <option value="bbox/face_yolov8n.pt">face_yolov8n</option>
+                            </select></div>
+                        <div class="option-row"><label><input type="checkbox" id="detailer-hand-toggle"> 손
+                                (Hands)</label><select id="detailer-hand-model">
+                                <option value="bbox/hand_yolov8n.pt">hand_yolov8n</option>
+                            </select></div>
+
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-mosaic" onchange="toggleSubOptions('mosaic-opts', this)">
+                        <label for="toggle-mosaic" style="font-weight: bold; cursor: pointer;">검열 적용</label>
+                    </div>
+                    <div id="mosaic-opts" class="sub-options" style="display: none;">
+                        <div style="font-size:0.9em; margin-bottom:10px; color:#aaa;">ntd11_anime_nsfw_segm 모델 전용 설정
+                        </div>
+                        <div class="option-row" style="margin-bottom: 5px; flex-wrap: wrap; gap: 8px;">
+                            <label title="nipples"><input type="checkbox" id="censor-nipples" checked> 꼭
+                                (Nipples)</label>
+                            <label title="pussy"><input type="checkbox" id="censor-pussy" checked> 보 (Pussy)</label>
+                            <label title="penis"><input type="checkbox" id="censor-penis" checked> 꼬 (Penis)</label>
+                            <label title="anus"><input type="checkbox" id="censor-anus"> 항 (Anus)</label>
+                            <label title="testicles"><input type="checkbox" id="censor-testicles"> 알 (Testicles)</label>
+                            <label title="x-ray"><input type="checkbox" id="censor-xray"> X-Ray</label>
+                            <label title="cross-section"><input type="checkbox" id="censor-cross-section"> 단면
+                                (Cross)</label>
+                        </div>
+                        <div class="option-row" style="margin-bottom: 10px;">
+                            <label style="font-weight: bold; width:80px;">검열 방식:</label>
+                            <select id="censor-mode" style="flex:1;">
+                                <option value="mosaic">모자이크 (Mosaic)</option>
+                                <option value="white">흰색 블러 (White Blur)</option>
+                                <option value="white_solid">흰색 통짜 (White Solid)</option>
+                            </select>
+                        </div>
+                        <div class="option-row" style="align-items: center;">
+                            <label style="font-weight: bold; width:80px;">검열 강도:</label>
+                            <input type="range" id="censor-intensity" min="1" max="50" value="15"
+                                style="flex:1; margin-right: 10px;"
+                                oninput="document.getElementById('censor-val').innerText=this.value">
+                            <span id="censor-val" style="width:25px; text-align:right;">15</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="single-mode-area">
+                    <div class="action-bar">
+                        <button class="btn-primary" onclick="generateImage()">🚀 단일 이미지 생성</button>
+                    </div>
+                </div>
+
+                <div id="batch-mode-area" style="display: none;">
+                    <div class="form-section" style="border-color: #4CAF50;">
+                        <h3 style="color: #4CAF50;">📋 작업 대기열 (Job Queue)</h3>
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                            <button class="btn-secondary" onclick="clearJobQueue()"
+                                style="font-size: 0.85em; padding: 4px 8px;">🗑️ 대기열 비우기</button>
+                            <label
+                                style="margin-left:auto; display:flex; align-items:center; gap:5px; font-size: 0.9em;">
+                                <span style="color:#aaa;">기본 반복 장수:</span>
+                                <input type="number" id="global-repeat-count" value="1" min="1" step="1"
+                                    onchange="if(window.appStateManager) window.appStateManager.debounceSave()"
+                                    style="width: 50px; padding: 3px; border-radius: 4px; border: 1px solid #555; background: #222; color: #fff; text-align: center;">
+                            </label>
+                        </div>
+
+                        <div class="form-group"
+                            style="margin-bottom: 20px; background: #1e1e1e; padding: 12px; border-radius: 6px; border: 1px solid #333;">
+                            <label style="color: #4CAF50; margin-bottom: 8px; display: block;">📁 출력 경로/파일명 템플릿</label>
+                            <input type="text" id="path-template" value="[캐릭터]/[의상]_[상황]" placeholder="예: [카테고리명]/파일명">
+                            <p style="font-size: 0.75em; color: #888; margin-top: 8px; line-height: 1.4;">
+                                💡 대괄호 <b>[그룹명]</b>을 적으면 선택된 조각의 이름으로 자동 치환됩니다.<br>
+                                예: <b>[캐릭터]/[의상]</b> → <b>엘프/교복_001.png</b>
+                            </p>
+                        </div>
+
+                        <div id="job-queue-list"
+                            style="background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #444; min-height: 150px; max-height: 400px; overflow-y: auto;">
+                            <p style="text-align: center; color: #666; margin: 0;">대기열이 비어 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="action-bar">
+                        <button class="btn-primary" style="background: #2196F3;" onclick="startBatchGeneration()">🚀 큐
+                            전체 순차 생성 시작</button>
+                    </div>
+                </div>
+            </div> <!-- End of gen-left -->
+
+            <div id="gen-resizer" class="gen-resizer"></div>
+
+            <div id="gen-right" class="gen-right" style="display: flex; flex-direction: column; height: 100%;">
+
+                <!-- 상단: 실시간 라이브 뷰어 (Phase 11) -->
+                <div id="live-preview-container"
+                    style="flex: 2; padding: 15px; border-bottom: 2px solid #333; display: flex; flex-direction: column;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="margin: 0; color: #FF9800;">📡 실시간 렌더링 뷰어</h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span id="live-status-text" style="color: #888; font-size: 0.9em; font-weight: bold;">대기
+                                중...</span>
+                            <button class="collapse-toggle-btn" id="live-preview-toggle" onclick="toggleLivePreview()">▼
+                                펼치기</button>
+                        </div>
+                    </div>
+
+                    <div id="progress-container"
+                        style="display: none; margin-bottom: 15px; background: #2a2a2a; padding: 10px; border-radius: 6px; border: 1px solid #444;">
+                        <div
+                            style="width: 100%; background: #111; border-radius: 4px; overflow: hidden; height: 16px; border: 1px solid #333;">
+                            <div id="progress-bar"
+                                style="width: 0%; height: 100%; background: linear-gradient(90deg, #FF9800, #FFC107); transition: width 0.1s;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="live-preview-body" class="collapsed"
+                        style="flex: 1; background: #111; border-radius: 8px; border: 1px dashed #555; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                        <!-- 초기 플레이스홀더 -->
+                        <div id="live-preview-placeholder" style="color: #444; text-align: center;">
+                            <div style="font-size: 3em; margin-bottom: 10px;">📺</div>
+                            <div>렌더링이 시작되면 여기에 표시됩니다.</div>
+                        </div>
+                        <!-- 실제 WebSocket Binary가 꽂힐 img -->
+                        <img id="live-preview-img" src="" alt="Live Preview"
+                            style="display: none; width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0;">
+                    </div>
+                </div>
+
+                <!-- 하단: 기존 생성 기록(History) -->
+                <div id="history-container" style="flex: 1; padding: 15px; overflow-y: auto;">
+                    <h3
+                        style="margin-top: 0; color: #4CAF50; border-bottom: 1px solid #444; padding-bottom: 10px; font-size: 1.1em; position: sticky; top: -15px; background: #1e1e1e; z-index: 5;">
+                        📜 최근 생성 기록
+                    </h3>
+                    <div id="history-stack" style="display: flex; flex-direction: column; gap: 10px;">
+                        <p style="font-size: 0.85em; color: #666; text-align: center; margin-top: 20px;">아직 생성된 이미지가
+                            없습니다.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="tab-checkpoint" class="tab-panel">
+            <h2>체크포인트 갤러리</h2>
+            <div id="checkpoint-gallery" class="gallery">로딩 중...</div>
+        </div>
+        <div id="tab-lora" class="tab-panel">
+            <h2>로라 갤러리</h2>
+            <div id="lora-gallery" class="gallery">로딩 중...</div>
+        </div>
+
+        <div id="tab-gallery" class="tab-panel">
+            <div class="gallery-layout">
+                <div class="gallery-left lib-panel">
+                    <div class="panel-header">
+                        <h3 style="margin:0;">📁 세트 모음</h3>
+                    </div>
+                    <div class="gallery-search" style="padding: 10px; border-bottom: 1px solid #444;">
+                        <input type="text" id="gallery-search-input" placeholder="세트명(폴더명) 검색..."
+                            oninput="filterGalleryFolders(this.value)"
+                            style="width: 100%; box-sizing: border-box; padding: 6px; background: #111; border: 1px solid #333; color: white; border-radius: 4px;">
+                    </div>
+                    <div class="panel-list" id="gallery-folder-list" style="height: calc(100% - 93px);">
+                        <p class="empty-msg">데이터 로딩 중...</p>
+                    </div>
+                </div>
+
+                <div class="gallery-right lib-panel">
+                    <div class="panel-header" style="justify-content: space-between;">
+                        <h3 id="current-gallery-title" style="margin:0; color: #4CAF50;">전체 이미지</h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span id="gallery-selection-info" style="font-size: 0.9em; color: #aaa;">선택됨: 0</span>
+                            <button class="btn-primary" style="padding: 6px 12px; font-size: 0.9em;"
+                                onclick="deleteSelectedGalleryImages()">🗑️ 선택 삭제</button>
+                            <button class="btn-secondary"
+                                style="color: #ff5555; border-color: #ff5555; padding: 6px 12px; font-size: 0.9em;"
+                                onclick="deleteAllGalleryImagesInView()">모두 삭제</button>
+                        </div>
+                    </div>
+                    <div class="gallery-grid" id="gallery-grid">
+                        <!-- 이미지 생성 결과가 여기에 타일 형태로 -->
+                    </div>
+                    <!-- Selection Box Overlay -->
+                    <div id="gallery-selection-box"
+                        style="display: none; position: absolute; border: 1px solid rgba(76, 175, 80, 0.8); background: rgba(76, 175, 80, 0.2); pointer-events: none; z-index: 100;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-prompt" class="tab-panel">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #2a2a2a; border-bottom: 1px solid #444;">
+                <h2 style="margin:0; color: #4CAF50;">프롬프트 라이브러리</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-primary" onclick="saveLibrary()">전체 저장</button>
+                    <button class="btn-secondary" onclick="exportLibrary()">내보내기</button>
+                    <button class="btn-secondary"
+                        onclick="document.getElementById('import-input').click()">가져오기</button>
+                    <input type="file" id="import-input" style="display:none" onchange="importLibrary(this)">
+                </div>
+            </div>
+
+            <div class="lib-wrapper" style="height: calc(100% - 70px);">
+                <div class="lib-panel" id="lib-categories">
+                    <div class="panel-header">
+                        <h3>작품 / 그룹</h3>
+                        <button class="btn-icon-small" onclick="addWork()" title="새 작품 추가">+</button>
+                    </div>
+                    <div class="panel-list" id="work-tree" style="flex: 1; overflow-y: auto;"></div>
+                    <div class="tree-footer">
+                        <button class="btn-secondary" onclick="addCategory()">+ 그룹 추가</button>
+                    </div>
+                </div>
+
+                <div class="lib-panel" id="lib-items">
+                    <div class="panel-header" style="justify-content: space-between;">
+                        <h3 id="current-cat-name" style="margin:0;">조각 목록</h3>
+                        <button class="btn-primary" id="btn-add-item" onclick="addItem()"
+                            style="display:none; padding: 4px 10px; font-size: 0.9em;">+ 새 조각</button>
+                    </div>
+                    <div class="gallery-search" style="padding: 10px; border-bottom: 1px solid #444; background: #222;">
+                        <input type="text" id="prompt-search-input" placeholder="이름/값/ID 검색..."
+                            oninput="filterPromptTags()"
+                            style="width: 100%; box-sizing: border-box; padding: 6px; background: #111; border: 1px solid #333; color: white; border-radius: 4px;">
+                    </div>
+                    <div class="panel-list" id="item-list"
+                        style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; align-content: flex-start; overflow-y: auto;">
+                        <p class="empty-msg" style="width: 100%;">그룹을 선택해 주세요.</p>
+                    </div>
+                </div>
+
+                <div class="lib-panel" id="lib-builder">
+                    <div class="panel-header">
+                        <h3>🛠️ 세트 조합</h3>
+                        <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.8em;"
+                            onclick="clearSelectedSet()">초기화</button>
+                    </div>
+                    <div id="selected-set-view" class="panel-list">
+                        <p class="empty-msg">조각을 선택해 보세요.</p>
+                    </div>
+                    <div class="builder-footer">
+                        <div class="preview-box">
+                            <strong>파일명 미리보기:</strong>
+                            <div id="path-preview"
+                                style="color: #4CAF50; margin-top: 5px; font-family: monospace; font-size: 0.9em; word-break: break-all;">
+                                선택 없음</div>
+                        </div>
+                        <button class="btn-primary" style="width: 100%;" onclick="sendSetToQueue()">
+                            📥 이 세트를 대기열로 전송
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="tab-settings" class="tab-panel">
+            <h2>⚙️ 환경 설정</h2>
+        </div>
+
+        <div id="tab-tools-metadata" class="tab-panel">
+            <div style="padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;">
+                <h2>🛠️ 단독 메타데이터 뷰어</h2>
+                <p style="color: #aaa; margin-top: -10px;">ComfyUI에서 생성된 이미지를 아래 영역에 끌어다 놓으면 내포된 프롬프트 설정값(PNG Info)을 즉시
+                    분석합니다.</p>
+
+                <div id="metadata-dropzone"
+                    style="flex: 1; border: 3px dashed #4CAF50; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #888; transition: background-color 0.2s, min-height 0.2s; min-height: 200px; margin-bottom: 20px;">
+                    <div style="font-size: 3em; margin-bottom: 10px;">📥</div>
+                    <div style="font-size: 1.2em;">여기에 이미지를 드롭하세요</div>
+                    <div style="font-size: 0.9em; margin-top: 5px;">(또는 클릭하여 파일 선택)</div>
+                    <input type="file" id="metadata-file-input" accept="image/png, image/webp" style="display: none;">
+                </div>
+
+                <div id="standalone-metadata-result"
+                    style="display: none; flex: 2; flex-direction: column; overflow-y: auto; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #444;">
+                        <h3 style="margin: 0; color: #4CAF50;">분석 결과</h3>
+                        <button class="btn-primary" id="btn-standalone-send-gen"
+                            style="display: none; padding: 6px 15px;">🪄 이 설정으로 생성 (Send to Generate)</button>
+                    </div>
+                    <!-- 결과 텍스트가 채워질 컨테이너 (기존 모달 바디 재활용 형태) -->
+                    <div id="standalone-metadata-body" style="flex: 1; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-tools-censor" class="tab-panel">
+            <div style="padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; height: 100%;">
+                <h2 style="margin-top: 0; color: #4CAF50;">🔍 단독 이미지 검열기 (Stand-alone Censor)</h2>
+                <p style="color: #ccc; margin-top: -10px; margin-bottom: 20px;">기존 이미지 파일을 끌어다 놓아 빠르게 검열(모자이크/블러) 처리합니다.
+                </p>
+
+                <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
+
+                    <!-- 좌측 패널 (업로드 & 결과 뷰어) -->
+                    <div
+                        style="flex: 1; display: flex; flex-direction: column; background: #1e1e1e; border-radius: 10px; overflow: hidden; border: 1px solid #333; position: relative;">
+                        <!-- 업로드/미리보기 드롭존 -->
+                        <div id="censor-dropzone"
+                            style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 3px dashed #555; margin: 15px; border-radius: 8px; cursor: pointer; transition: 0.2s;">
+                            <input type="file" id="censor-file-input" accept="image/jpeg, image/png, image/webp"
+                                multiple style="display: none;">
+                            <div id="censor-drop-placeholder" style="text-align: center; color: #888;">
+                                <div style="font-size: 3em; margin-bottom: 10px;">📸</div>
+                                <div style="font-size: 1.2em;">여기에 이미지를 드롭하세요</div>
+                                <div style="font-size: 0.9em; margin-top: 5px;">(또는 클릭하여 파일 선택)</div>
+                            </div>
+                            <!-- 원본 미리보기 이미지 (진행 중이거나 슬라이더 사용 전) -->
+                            <img id="censor-preview-img"
+                                style="display: none; max-width: 100%; max-height: 100%; object-fit: contain; position: absolute; top:0; left:0; right:0; bottom:0; padding:10px; box-sizing: border-box; pointer-events: none;" />
+                        </div>
+
+                        <!-- 슬라이더 비교 뷰 및 캔버스 덧칠 영역 (완료 후 활성화) -->
+                        <div id="censor-detail-view"
+                            style="display: none; flex: 1; margin: 15px; background: #222; border-radius: 8px; flex-direction: column; position: relative;">
+                            <!-- 브러쉬 툴바 -->
+                            <div id="censor-brush-toolbar"
+                                style="display: flex; gap: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 6px; align-items: center; z-index: 10;">
+                                <button class="btn-secondary" id="btn-brush-color"
+                                    style="padding: 2px 8px; font-size: 0.9em; display: flex; align-items: center; gap: 5px;"
+                                    onclick="document.getElementById('censor-brush-color-picker').click()">
+                                    <div id="brush-color-preview"
+                                        style="width: 14px; height: 14px; background: #ffffff; border: 1px solid #ccc; border-radius: 50%;">
+                                    </div> 색상
+                                </button>
+                                <input type="color" id="censor-brush-color-picker" value="#ffffff"
+                                    style="display: none;">
+
+                                <label style="font-size: 0.9em; display: flex; align-items: center; gap: 5px;">크기
+                                    <input type="range" id="censor-brush-size" min="1" max="100" value="20"
+                                        style="width: 60px;"></label>
+
+                                <label style="font-size: 0.9em; display: flex; align-items: center; gap: 5px;"><input
+                                        type="checkbox" id="censor-brush-eraser"> 지우개</label>
+                                <div style="flex: 1;"></div>
+                                <button class="btn-secondary" style="padding: 2px 8px; font-size: 0.9em;"
+                                    onclick="clearCensorCanvas()">초기화</button>
+                                <button class="btn-primary" style="padding: 2px 8px; font-size: 0.9em;"
+                                    onclick="saveRetouchedImage()">💾 병합 저장</button>
+                            </div>
+                            <!-- 비교 뷰어 컨테이너 -->
+                            <div id="censor-compare-container"
+                                style="position: relative; flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; user-select: none;">
+                                <div id="censor-image-wrapper"
+                                    style="position: relative; max-width: 100%; max-height: 100%; display: inline-block;">
+                                    <!-- After (검열 후 이미지) -->
+                                    <img id="censor-img-after"
+                                        style="display: block; max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; z-index: 1;">
+
+                                    <!-- Before (원본 이미지 - 덧칠 캔버스 아래 위치, slider에 의해 clip-path 적용) -->
+                                    <img id="censor-img-before"
+                                        style="position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; z-index: 2; clip-path: polygon(0 0, 50% 0, 50% 100%, 0% 100%);">
+
+                                    <!-- 덧칠 캔버스 레이어 -->
+                                    <canvas id="censor-retouch-canvas"
+                                        style="position: absolute; top:0; left:0; width: 100%; height: 100%; cursor: crosshair; z-index: 8; touch-action: none;"></canvas>
+
+                                    <!-- 슬라이더 핸들 -->
+                                    <div id="censor-compare-slider"
+                                        style="position: absolute; top: 0; bottom: 0; width: 4px; background: white; cursor: ew-resize; left: 50%; transform: translateX(-50%); z-index: 15; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                                        <div
+                                            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+                                            <div style="width: 2px; height: 10px; background: #555; margin: 0 1px;">
+                                            </div>
+                                            <div style="width: 2px; height: 10px; background: #555; margin: 0 1px;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 상태 바 -->
+                        <div
+                            style="background: #111; padding: 10px 15px; border-top: 1px solid #333; display: flex; align-items: center; justify-content: space-between;">
+                            <span id="censor-status-text"
+                                style="color: #aaa; font-size: 0.9em; font-weight: bold;">준비됨</span>
+                            <div
+                                style="flex: 1; background: #222; border-radius: 4px; overflow: hidden; height: 10px; margin-left: 15px;">
+                                <div id="censor-progress-bar"
+                                    style="width: 0%; height: 100%; background: linear-gradient(90deg, #FF9800, #FFC107); transition: width 0.1s;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 다중 썸네일 대기열 뷰 -->
+                        <div id="censor-queue-container"
+                            style="height: 100px; background: #151515; border-top: 1px solid #333; display: flex; align-items: center; padding: 10px; overflow-x: auto; gap: 10px; box-sizing: border-box;">
+                            <span id="censor-queue-empty-msg" style="color: #666; font-size: 0.9em; margin: auto;">대기열이
+                                비어 있습니다.</span>
+                        </div>
+                    </div>
+
+                    <!-- 우측 패널 (옵션 설정) -->
+                    <div
+                        style="flex: 1; background: #1a1a1a; padding: 20px; border-radius: 10px; border: 1px solid #333; display: flex; flex-direction: column; gap: 15px;">
+                        <div class="form-section" style="border-color: #2196F3; margin: 0; padding: 15px;">
+                            <h3 style="color: #2196F3; margin-top:0;">1. 타겟 부위 (Target Segments)</h3>
+                            <div class="option-row" style="flex-wrap: wrap; gap: 10px; display: flex;">
+                                <label><input type="checkbox" id="tool-censor-nipples" checked> 꼭 (Nipples)</label>
+                                <label><input type="checkbox" id="tool-censor-pussy" checked> 보 (Pussy)</label>
+                                <label><input type="checkbox" id="tool-censor-penis" checked> 꼬 (Penis)</label>
+                                <label><input type="checkbox" id="tool-censor-anus"> 항 (Anus)</label>
+                                <label><input type="checkbox" id="tool-censor-testicles"> 알 (Testicles)</label>
+                                <label><input type="checkbox" id="tool-censor-xray"> X-Ray</label>
+                                <label><input type="checkbox" id="tool-censor-cross-section"> 단면 (Cross)</label>
+                            </div>
+                        </div>
+
+                        <div class="form-section" style="border-color: #ff9800; margin: 0; padding: 15px;">
+                            <h3 style="color: #ff9800; margin-top:0;">2. 검열 스타일 (Style)</h3>
+                            <div class="option-row" style="margin-bottom: 15px;">
+                                <label style="font-weight: bold; width:100px;">검열 방식:</label>
+                                <select id="tool-censor-mode" style="flex:1;">
+                                    <option value="mosaic">모자이크 (Mosaic)</option>
+                                    <option value="white">흰색 블러 막 (White Blur)</option>
+                                    <option value="white_solid">흰색 단색 (White Solid)</option>
+                                </select>
+                            </div>
+                            <div class="option-row" style="align-items: center;">
+                                <label style="font-weight: bold; width:100px;">검열 강도:</label>
+                                <input type="range" id="tool-censor-intensity" min="1" max="50" value="15"
+                                    style="flex:1; margin-right: 15px;"
+                                    oninput="document.getElementById('tool-censor-val').innerText=this.value">
+                                <span id="tool-censor-val"
+                                    style="width:30px; text-align:right; font-weight:bold;">15</span>
+                            </div>
+                            <p style="font-size: 0.8em; color: #888; line-height: 1.4; margin-top: 15px;">* 강도가 높을수록
+                                모자이크 타일
+                                크기가 커지거나 블러 범위가 넓어집니다.</p>
+                        </div>
+
+                        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+                            <button class="btn-primary" style="background: #2196F3; font-size: 1.1em; padding: 12px;"
+                                onclick="runStandaloneCensor()">🚀 대기열 검열 파이프라인 가동</button>
+                            <button class="btn-secondary"
+                                style="font-size: 1em; padding: 10px; font-weight: bold; background: #333;"
+                                onclick="downloadCensorZip()">📦 전체 완료본 ZIP 다운로드</button>
+                            <button class="btn-secondary" style="font-size: 0.9em; padding: 8px;"
+                                onclick="resetCensorTool()">↺ 큐 초기화 (비우기)</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div id="tab-tools-resizer" class="tab-panel">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 style="margin: 0;">✂️ 원클릭 이미지 변환기 (Quick Resizer)</h2>
+            </div>
+            <div style="display: flex; gap: 20px; height: calc(100vh - 120px);">
+
+                <!-- 좌측 패널 (드롭존 & 대기열) -->
+                <div style="flex: 2; display: flex; flex-direction: column; gap: 15px;">
+                    <!-- 드롭존 구역 -->
+                    <div id="resizer-dropzone"
+                        style="flex: 1; border: 2px dashed #555; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: transparent; cursor: pointer; transition: 0.2s; position: relative; overflow: hidden; flex-direction: column;">
+                        <input type="file" id="resizer-file-input" accept="image/*" multiple style="display: none;">
+                        <div id="resizer-drop-placeholder" style="text-align: center; color: #888;">
+                            <div style="font-size: 3em; margin-bottom: 10px;">✂️</div>
+                            <h3>이미지를 이곳에 드래그하거나<br>클릭하여 파일을 선택하세요.</h3>
+                            <p style="font-size: 0.9em;">(여러 장 다중 선택/드롭 가능)</p>
+                        </div>
+                    </div>
+
+                    <!-- 상태 바 -->
+                    <div
+                        style="background: #111; padding: 10px 15px; border-top: 1px solid #333; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="resizer-status-text"
+                            style="color: #aaa; font-size: 0.9em; font-weight: bold;">준비됨</span>
+                        <div
+                            style="flex: 1; background: #222; border-radius: 4px; overflow: hidden; height: 10px; margin-left: 15px;">
+                            <div id="resizer-progress-bar"
+                                style="width: 0%; height: 100%; background: linear-gradient(90deg, #9C27B0, #E040FB); transition: width 0.1s;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 다중 썸네일 대기열 뷰 -->
+                    <div id="resizer-queue-container"
+                        style="height: 100px; background: #151515; border-top: 1px solid #333; display: flex; align-items: center; padding: 10px; overflow-x: auto; gap: 10px; box-sizing: border-box;">
+                        <span id="resizer-queue-empty-msg" style="color: #666; font-size: 0.9em; margin: auto;">대기열이 비어
+                            있습니다.</span>
+                    </div>
+                </div>
+
+                <!-- 우측 패널 (옵션 설정) -->
+                <div
+                    style="flex: 1; background: #1a1a1a; padding: 20px; border-radius: 10px; border: 1px solid #333; display: flex; flex-direction: column; gap: 15px;">
+
+                    <div class="form-section" style="border-color: #9C27B0; margin: 0; padding: 15px;">
+                        <h3 style="color: #9C27B0; margin-top:0;">1. 리사이즈 (Resize)</h3>
+                        <div class="option-row" style="margin-bottom: 15px;">
+                            <label style="font-weight: bold; width:100px;">방식:</label>
+                            <select id="resizer-mode" style="flex:1;" onchange="toggleResizerInputs()">
+                                <option value="none">원본 해상도 유지</option>
+                                <option value="scale">비율(%) 축소</option>
+                                <option value="longest">긴 축 기준 (Longest Edge)</option>
+                                <option value="exact">강제 해상도 지정 (WxH)</option>
+                            </select>
+                        </div>
+
+                        <div id="resizer-inputs-scale" class="option-row" style="align-items: center; display: none;">
+                            <label style="font-weight: bold; width:100px;">스케일(%):</label>
+                            <input type="number" id="resizer-val-scale" value="50" min="1" max="200" style="flex:1;">
+                        </div>
+                        <div id="resizer-inputs-longest" class="option-row" style="align-items: center; display: none;">
+                            <label style="font-weight: bold; width:100px;">픽셀(px):</label>
+                            <input type="number" id="resizer-val-longest" value="1024" min="1" style="flex:1;">
+                        </div>
+                        <div id="resizer-inputs-exact" class="option-row"
+                            style="align-items: center; display: none; gap: 10px;">
+                            <label style="font-weight: bold; width:100px;">W x H:</label>
+                            <input type="number" id="resizer-val-width" value="512" min="1" style="flex:1;"
+                                placeholder="가로">
+                            <span>x</span>
+                            <input type="number" id="resizer-val-height" value="512" min="1" style="flex:1;"
+                                placeholder="세로">
+                        </div>
+                    </div>
+
+                    <div class="form-section" style="border-color: #03A9F4; margin: 0; padding: 15px;">
+                        <h3 style="color: #03A9F4; margin-top:0;">2. 포맷 (Format & Quality)</h3>
+                        <div class="option-row" style="margin-bottom: 15px;">
+                            <label style="font-weight: bold; width:100px;">출력 포맷:</label>
+                            <select id="resizer-format" style="flex:1;" onchange="toggleResizerQuality()">
+                                <option value="webp">WEBP (추천)</option>
+                                <option value="jpeg">JPEG</option>
+                                <option value="png">PNG (무손실)</option>
+                            </select>
+                        </div>
+                        <div id="resizer-quality-container" class="option-row" style="align-items: center;">
+                            <label style="font-weight: bold; width:100px;">압축 품질:</label>
+                            <input type="range" id="resizer-quality" min="1" max="100" value="85"
+                                style="flex:1; margin-right: 15px;"
+                                oninput="document.getElementById('resizer-quality-str').innerText=this.value">
+                            <span id="resizer-quality-str"
+                                style="width:30px; text-align:right; font-weight:bold;">85</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+                        <button class="btn-primary" style="background: #9C27B0; font-size: 1.1em; padding: 12px;"
+                            onclick="runStandaloneResizer()">⚡ 대기열 일괄 변환 시작</button>
+                        <button class="btn-secondary"
+                            style="font-size: 1em; padding: 10px; font-weight: bold; background: #333;"
+                            onclick="downloadResizerZip()">📦 완료본 ZIP 다운로드</button>
+                        <button class="btn-secondary" style="font-size: 0.9em; padding: 8px;"
+                            onclick="resetResizerTool()">↺ 큐 초기화 (비우기)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 작품/그룹 수정 모달 -->
+    <div id="work-edit-modal" class="modal-overlay" style="display:none;"
+        onclick="if(event.target===this) closeWorkEditModal()">
+        <div class="modal-content" style="width: 400px;" onclick="event.stopPropagation()">
+            <h3 id="work-edit-modal-title" style="color: #4CAF50; margin-top: 0;">작품 수정</h3>
+            <input type="hidden" id="work-edit-type">
+            <input type="hidden" id="work-edit-original-id">
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                <label style="font-size: 0.9em; color: #aaa;">ID (고유 식별자)</label>
+                <input type="text" id="work-edit-id" class="inline-input" placeholder="고유 ID">
+                <label style="font-size: 0.9em; color: #aaa;">이름</label>
+                <input type="text" id="work-edit-name" class="inline-input" placeholder="표시 이름">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="closeWorkEditModal()">취소</button>
+                <button class="btn-primary" onclick="saveWorkEditModal()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 라이브러리 컨텍스트 메뉴 -->
+    <div id="lib-context-menu" class="lib-context-menu"></div>
+
+    <script src="/assetmanager/static/js/component_metadata.js"></script>
+    <script src="/assetmanager/static/js/state_manager.js"></script>
+    <script src="/assetmanager/static/js/api.js"></script>
+    <script src="/assetmanager/static/js/ui_manager.js"></script>
+    <script src="/assetmanager/static/js/library.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_upscaler.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_detailer.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_censor.js"></script>
+    <script src="/assetmanager/static/js/tools_censor.js"></script>
+    <script src="/assetmanager/static/js/tools_resizer.js"></script>
+    <script src="/assetmanager/static/js/generate.js"></script>
+    <script src="/assetmanager/static/js/main.js"></script>
+    <script src="/assetmanager/static/js/gallery.js"></script>
+</body>
+
+</html>

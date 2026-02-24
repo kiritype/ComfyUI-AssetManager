@@ -16,19 +16,26 @@ class AppStateManager {
      */
     getCurrentState() {
         const detailerOpts = {
-            face: document.getElementById('tool-detailer-face')?.checked || false,
-            hand: document.getElementById('tool-detailer-hand')?.checked || false,
-            person: document.getElementById('tool-detailer-person')?.checked || false,
-            mouth: document.getElementById('tool-detailer-mouth')?.checked || false
+            face: document.getElementById('detailer-face-toggle')?.checked || false,
+            eye: document.getElementById('detailer-eye-toggle')?.checked || false,
+            mouth: document.getElementById('detailer-mouth-toggle')?.checked || false,
+            hand: document.getElementById('detailer-hand-toggle')?.checked || false,
+            faceModel: document.getElementById('detailer-face-model')?.value || '',
+            eyeModel: document.getElementById('detailer-eye-model')?.value || '',
+            mouthModel: document.getElementById('detailer-mouth-model')?.value || '',
+            handModel: document.getElementById('detailer-hand-model')?.value || ''
         };
 
         const mosaicOpts = {
-            face: document.getElementById('tool-mosaic-face')?.checked || false,
-            nipples: document.getElementById('tool-mosaic-nipples')?.checked || false,
-            pussy: document.getElementById('tool-mosaic-pussy')?.checked || false,
-            penis: document.getElementById('tool-mosaic-penis')?.checked || false,
-            anus: document.getElementById('tool-mosaic-anus')?.checked || false,
-            strength: document.getElementById('tool-mosaic-strength')?.value || '5.0'
+            nipples: document.getElementById('censor-nipples')?.checked || false,
+            pussy: document.getElementById('censor-pussy')?.checked || false,
+            penis: document.getElementById('censor-penis')?.checked || false,
+            anus: document.getElementById('censor-anus')?.checked || false,
+            testicles: document.getElementById('censor-testicles')?.checked || false,
+            xray: document.getElementById('censor-xray')?.checked || false,
+            'cross-section': document.getElementById('censor-cross-section')?.checked || false,
+            mode: document.getElementById('censor-mode')?.value || 'mosaic',
+            intensity: document.getElementById('censor-intensity')?.value || '15'
         };
 
         const standaloneCensorOpts = {
@@ -145,10 +152,14 @@ class AppStateManager {
         }
         if (state.detailerOpts) {
             const dOpts = state.detailerOpts;
-            if (dOpts.face !== undefined && document.getElementById('tool-detailer-face')) document.getElementById('tool-detailer-face').checked = dOpts.face;
-            if (dOpts.hand !== undefined && document.getElementById('tool-detailer-hand')) document.getElementById('tool-detailer-hand').checked = dOpts.hand;
-            if (dOpts.person !== undefined && document.getElementById('tool-detailer-person')) document.getElementById('tool-detailer-person').checked = dOpts.person;
-            if (dOpts.mouth !== undefined && document.getElementById('tool-detailer-mouth')) document.getElementById('tool-detailer-mouth').checked = dOpts.mouth;
+            if (dOpts.face !== undefined && document.getElementById('detailer-face-toggle')) document.getElementById('detailer-face-toggle').checked = dOpts.face;
+            if (dOpts.eye !== undefined && document.getElementById('detailer-eye-toggle')) document.getElementById('detailer-eye-toggle').checked = dOpts.eye;
+            if (dOpts.mouth !== undefined && document.getElementById('detailer-mouth-toggle')) document.getElementById('detailer-mouth-toggle').checked = dOpts.mouth;
+            if (dOpts.hand !== undefined && document.getElementById('detailer-hand-toggle')) document.getElementById('detailer-hand-toggle').checked = dOpts.hand;
+            if (dOpts.faceModel && document.getElementById('detailer-face-model')) document.getElementById('detailer-face-model').value = dOpts.faceModel;
+            if (dOpts.eyeModel && document.getElementById('detailer-eye-model')) document.getElementById('detailer-eye-model').value = dOpts.eyeModel;
+            if (dOpts.mouthModel && document.getElementById('detailer-mouth-model')) document.getElementById('detailer-mouth-model').value = dOpts.mouthModel;
+            if (dOpts.handModel && document.getElementById('detailer-hand-model')) document.getElementById('detailer-hand-model').value = dOpts.handModel;
         }
 
         /* 모자이크 설정 */
@@ -157,15 +168,18 @@ class AppStateManager {
         }
         if (state.mosaicOpts) {
             const mOpts = state.mosaicOpts;
-            const mosaicChecks = ['face', 'nipples', 'pussy', 'penis', 'anus'];
+            const mosaicChecks = ['nipples', 'pussy', 'penis', 'anus', 'testicles', 'xray', 'cross-section'];
             mosaicChecks.forEach(id => {
-                if (mOpts[id] !== undefined && document.getElementById(`tool-mosaic-${id}`)) {
-                    document.getElementById(`tool-mosaic-${id}`).checked = mOpts[id];
+                if (mOpts[id] !== undefined && document.getElementById(`censor-${id}`)) {
+                    document.getElementById(`censor-${id}`).checked = mOpts[id];
                 }
             });
-            if (mOpts.strength && document.getElementById('tool-mosaic-strength')) {
-                document.getElementById('tool-mosaic-strength').value = mOpts.strength;
-                if (document.getElementById('tool-mosaic-strength-val')) document.getElementById('tool-mosaic-strength-val').innerText = mOpts.strength;
+            if (mOpts.mode && document.getElementById('censor-mode')) {
+                document.getElementById('censor-mode').value = mOpts.mode;
+            }
+            if (mOpts.intensity && document.getElementById('censor-intensity')) {
+                document.getElementById('censor-intensity').value = mOpts.intensity;
+                if (document.getElementById('censor-val')) document.getElementById('censor-val').innerText = mOpts.intensity;
             }
         }
 

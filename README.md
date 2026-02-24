@@ -23,7 +23,7 @@ ComfyUI 환경에서 에셋, 프롬프트, 모델, 파이프라인을 통합 관
 > **다운로드 링크:**  
 > [Anime NSFW Detection / ADetailer All-in-One (Civitai)](https://civitai.com/models/1313556/anime-nsfw-detectionadetailer-all-in-one)
 
-위 링크에서 `ntd11_anime_nsfw_segm` 모델을 다운로드하여 ComfyUI의 모델 폴더에 배치해 주세요.
+위 링크에서 `ntd11_anime_nsfw_segm` 모델을 다운로드하여 ComfyUI의 모델 폴더`\Ultralytics\segm`에 배치해 주세요.
 
 ### Impact-Subpack 화이트리스트 등록
 
@@ -37,6 +37,14 @@ ComfyUI 환경에서 에셋, 프롬프트, 모델, 파이프라인을 통합 관
    ntd11_anime_nsfw_segm_v5-variant1.pt
    ```
 4. ComfyUI 서버를 재시작하면 모델이 검열 파이프라인에서 인식됩니다.
+
+### 필요 노드
+* [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)
+* [rgthree-comfy](https://github.com/rgthree/rgthree-comfy)
+* [ComfyUI Impact Pack](https://github.com/ltdrdata/ComfyUI-Impact-Pack)
+* [ComfyUI Impact Subpack](https://github.com/ltdrdata/ComfyUI-Impact-Subpack)
+* [WAS Node Suite (Revised)](https://github.com/ltdrdata/was-node-suite-comfyui)
+* [JPS Custom Nodes for ComfyUI](https://github.com/JPS-GER/ComfyUI_JPS-Nodes)
 
 ### 기타 참고사항
 

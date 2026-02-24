@@ -42,7 +42,7 @@ ComfyUI 환경에서 에셋, 프롬프트, 모델, 파이프라인을 통합 관
 * [눈,손,얼굴 디테일러](https://huggingface.co/ashllay/YOLO_Models/tree/main)
 * [입 디테일러](https://civitai.com/models/1306938/adetailer-2d-mouth-detection-yolosegmentation)
 
-위 링크에서 다운로드하여 ComfyUI의 모델 폴더`\Ultralytics\segm`에 배치해 주세요.
+위 링크에서 다운로드하여 ComfyUI의 모델 폴더`\Ultralytics\`에 배치해 주세요.
 
 ### 필요 노드
 * [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)

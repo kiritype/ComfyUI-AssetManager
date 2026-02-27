@@ -181,12 +181,41 @@ async function showImageProperties() {
             const neg = textPromptNode?.inputs?.neg || "정보 없음";
             const model = findNodeByTitle("[Main] ckpt loader")?.inputs?.ckpt_name || "정보 없음";
 
+            /** 노드 참조 배열을 실제 값으로 해석하는 헬퍼 */
+            const resolveValue = (val, key) => {
+                if (Array.isArray(val) && val.length === 2) {
+                    const refNode = promptData[val[0]];
+                    if (!refNode) return val;
+                    /* 출력 인덱스가 0이면 inputs.value 또는 해당 key를 탐색 */
+                    if (refNode.inputs) {
+                        if (refNode.inputs.value !== undefined) return refNode.inputs.value;
+                        if (key && refNode.inputs[key] !== undefined) return refNode.inputs[key];
+                        /* JPS Sampler Scheduler: 인덱스 0=sampler_name, 1=scheduler */
+                        if (val[1] === 0 && refNode.inputs.sampler_name !== undefined) return refNode.inputs.sampler_name;
+                        if (val[1] === 1 && refNode.inputs.scheduler !== undefined) return refNode.inputs.scheduler;
+                    }
+                    return val;
+                }
+                return val;
+            };
+
             const ksampler = findNodeByTitle("[Main] KSampler");
             const seed = ksampler?.inputs?.seed || "정보 없음";
-            const steps = ksampler?.inputs?.steps || "정보 없음";
-            const cfg = ksampler?.inputs?.cfg || "정보 없음";
-            const sampler = ksampler?.inputs?.sampler_name || "정보 없음";
-            const scheduler = ksampler?.inputs?.scheduler || "정보 없음";
+
+            /* Steps: KSampler → [Main] Step 노드 순으로 탐색 */
+            let steps = resolveValue(ksampler?.inputs?.steps, 'steps');
+            if (steps === undefined || steps === null) {
+                steps = findNodeByTitle("[Main] Step")?.inputs?.value || "정보 없음";
+            }
+
+            /* CFG: KSampler → [Main] CFG 노드 순으로 탐색 */
+            let cfg = resolveValue(ksampler?.inputs?.cfg, 'cfg');
+            if (cfg === undefined || cfg === null) {
+                cfg = findNodeByTitle("[Main] CFG")?.inputs?.value || "정보 없음";
+            }
+
+            const sampler = resolveValue(ksampler?.inputs?.sampler_name, 'sampler_name') || "정보 없음";
+            const scheduler = resolveValue(ksampler?.inputs?.scheduler, 'scheduler') || "정보 없음";
 
             const latent = findNodeByTitle("[Main] Latent Image");
             const dimensions = latent?.inputs?.dimensions || "정보 없음";

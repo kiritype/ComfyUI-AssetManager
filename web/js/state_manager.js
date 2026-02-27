@@ -72,7 +72,8 @@ class AppStateManager {
 
             upscaleOn: document.getElementById('toggle-upscale')?.checked || false,
             upscaleModel: document.getElementById('upscale-model')?.value || '',
-            upscaleScale: document.getElementById('upscale-ratio')?.value || '1.1',
+            upscaleScale: document.getElementById('upscale-scale')?.value || '1.5',
+            upscaleSteps: document.getElementById('upscale-steps')?.value || '10',
 
             detailerOn: document.getElementById('toggle-detailer')?.checked || false,
             detailerOpts: detailerOpts,
@@ -97,6 +98,16 @@ class AppStateManager {
             templatePath: document.getElementById('template-path')?.value || 'workflows/SD1.5/Base/V1',
             civitaiMetadataOn: document.getElementById('toggle-civitai-metadata')?.checked || true,
             livePreviewCollapsed: document.getElementById('live-preview-body')?.classList.contains('collapsed') || false,
+
+            advancedOpts: {
+                dimensions: document.getElementById('adv-dimensions')?.value || '1024 x 1024  (square)',
+                sampler: document.getElementById('adv-sampler')?.value || 'euler_ancestral',
+                scheduler: document.getElementById('adv-scheduler')?.value || 'normal',
+                steps: document.getElementById('adv-steps')?.value || '28',
+                cfg: document.getElementById('adv-cfg')?.value || '5',
+                seedRandom: document.getElementById('adv-seed-random')?.checked !== false,
+                seed: document.getElementById('adv-seed')?.value || ''
+            },
 
             /* generate.js의 let jobQueue는 로컬 변수이므로 getter 함수로 접근 */
             jobQueue: typeof getJobQueue === 'function' ? getJobQueue() : [],
@@ -140,10 +151,13 @@ class AppStateManager {
             document.getElementById('toggle-upscale').checked = state.upscaleOn;
         }
         if (state.upscaleModel && document.getElementById('upscale-model')) document.getElementById('upscale-model').value = state.upscaleModel;
+        if (state.upscaleSteps && document.getElementById('upscale-steps')) {
+            document.getElementById('upscale-steps').value = state.upscaleSteps;
+            if (document.getElementById('upscale-steps-val')) document.getElementById('upscale-steps-val').innerText = state.upscaleSteps;
+        }
         const upscaleVal = state.upscaleScale || state.upscaleRatio;
-        if (upscaleVal && document.getElementById('upscale-ratio')) {
-            document.getElementById('upscale-ratio').value = upscaleVal;
-            if (document.getElementById('upscale-ratio-str')) document.getElementById('upscale-ratio-str').innerText = upscaleVal;
+        if (upscaleVal && document.getElementById('upscale-scale')) {
+            document.getElementById('upscale-scale').value = upscaleVal;
         }
 
         /* 디테일러 설정 */
@@ -241,14 +255,51 @@ class AppStateManager {
             document.getElementById('toggle-civitai-metadata').checked = state.civitaiMetadataOn;
         }
 
-        /* LoRA 복원은 드롭다운 로딩 타이밍 문제로 별도 처리 필요 (현재 미구현) */
-        if (state.loraOpts && typeof renderLoras === 'function') {
+        /* LoRA 복원: 로라 옵션 HTML이 로딩된 후에 실행되도록 약간 지연 */
+        if (state.loraOpts && state.loraOpts.length > 0) {
+            const restoreLoras = () => {
+                if (!window.loraOptionsHTML) { setTimeout(restoreLoras, 300); return; }
+                state.loraOpts.forEach(lora => {
+                    if (window.addLoraRow) window.addLoraRow();
+                    const rows = document.querySelectorAll('#selected-loras .lora-item');
+                    const lastRow = rows[rows.length - 1];
+                    if (lastRow) {
+                        const sel = lastRow.querySelector('select');
+                        const inp = lastRow.querySelector('input[type="number"]');
+                        if (sel) sel.value = lora.model;
+                        if (inp) inp.value = lora.weight;
+                    }
+                });
+            };
+            setTimeout(restoreLoras, 500);
         }
 
-        /* 파이프라인 UI 토글 상태 반영 */
-        if (typeof togglePipelineOptions === 'function') togglePipelineOptions('upscale');
-        if (typeof togglePipelineOptions === 'function') togglePipelineOptions('detailer');
-        if (typeof togglePipelineOptions === 'function') togglePipelineOptions('mosaic');
+        /* 고급 설정 복원 */
+        if (state.advancedOpts) {
+            const a = state.advancedOpts;
+            if (a.dimensions && document.getElementById('adv-dimensions')) document.getElementById('adv-dimensions').value = a.dimensions;
+            if (a.sampler && document.getElementById('adv-sampler')) document.getElementById('adv-sampler').value = a.sampler;
+            if (a.scheduler && document.getElementById('adv-scheduler')) document.getElementById('adv-scheduler').value = a.scheduler;
+            if (a.steps && document.getElementById('adv-steps')) document.getElementById('adv-steps').value = a.steps;
+            if (a.cfg && document.getElementById('adv-cfg')) document.getElementById('adv-cfg').value = a.cfg;
+            if (a.seedRandom !== undefined && document.getElementById('adv-seed-random')) {
+                document.getElementById('adv-seed-random').checked = a.seedRandom;
+                const seedInput = document.getElementById('adv-seed');
+                if (seedInput) { seedInput.disabled = a.seedRandom; if (!a.seedRandom && a.seed) seedInput.value = a.seed; }
+            }
+        }
+
+        /* 후처리 옵션: 활성화 되어있으면 자동 펼침 */
+        const togglePairs = [
+            ['toggle-upscale', 'upscale-opts'],
+            ['toggle-detailer', 'detailer-opts'],
+            ['toggle-mosaic', 'mosaic-opts']
+        ];
+        togglePairs.forEach(([toggleId, optsId]) => {
+            const toggle = document.getElementById(toggleId);
+            const opts = document.getElementById(optsId);
+            if (toggle && opts) opts.style.display = toggle.checked ? 'block' : 'none';
+        });
 
         /* 라이브 프리뷰 접힘 상태 */
         if (state.livePreviewCollapsed !== undefined) {

@@ -298,10 +298,7 @@
   "109": {
     "inputs": {
       "seed": 401367361360765,
-      "steps": [
-        "91",
-        0
-      ],
+      "steps": 10,
       "cfg": [
         "88",
         0
@@ -314,7 +311,7 @@
         "92",
         1
       ],
-      "denoise": 0.4000000000000001,
+      "denoise": 0.4,
       "model": [
         "87",
         0
@@ -937,8 +934,7 @@
   },
   "800": {
     "inputs": {
-      "model_name": "segm/ntd11_anime_nsfw_segm_v5-variant1.pt",
-      "bbox_margin": 0
+      "model_name": "segm/ntd11_anime_nsfw_segm_v5-variant1.pt"
     },
     "class_type": "UltralyticsDetectorProvider",
     "_meta": {
@@ -947,6 +943,11 @@
   },
   "801": {
     "inputs": {
+      "threshold": 0.4,
+      "dilation": 0,
+      "crop_factor": 3,
+      "drop_size": 1,
+      "labels": "all",
       "segm_detector": [
         "800",
         1
@@ -954,12 +955,7 @@
       "image": [
         "141",
         0
-      ],
-      "threshold": 0.4,
-      "dilation": 0,
-      "crop_factor": 3.0,
-      "drop_size": 1,
-      "labels": "all"
+      ]
     },
     "class_type": "SegmDetectorSEGS",
     "_meta": {
@@ -981,7 +977,7 @@
   "803": {
     "inputs": {
       "upscale_method": "nearest-exact",
-      "scale_by": 0.066,
+      "scale_by": 0.07,
       "image": [
         "141",
         0
@@ -995,7 +991,7 @@
   "804": {
     "inputs": {
       "upscale_method": "nearest-exact",
-      "scale_by": 15.0,
+      "scale_by": 8,
       "image": [
         "803",
         0
@@ -1008,6 +1004,9 @@
   },
   "805": {
     "inputs": {
+      "x": 0,
+      "y": 0,
+      "resize_source": true,
       "destination": [
         "141",
         0
@@ -1016,9 +1015,6 @@
         "804",
         0
       ],
-      "x": 0,
-      "y": 0,
-      "resize_source": true,
       "mask": [
         "802",
         0
@@ -1043,12 +1039,12 @@
   },
   "807": {
     "inputs": {
+      "kernel_size": 15,
+      "sigma": 7.5,
       "mask": [
         "802",
         0
-      ],
-      "kernel_size": 15,
-      "sigma": 7.5
+      ]
     },
     "class_type": "ImpactGaussianBlurMask",
     "_meta": {
@@ -1057,6 +1053,9 @@
   },
   "808": {
     "inputs": {
+      "x": 0,
+      "y": 0,
+      "resize_source": true,
       "destination": [
         "141",
         0
@@ -1065,9 +1064,6 @@
         "806",
         0
       ],
-      "x": 0,
-      "y": 0,
-      "resize_source": true,
       "mask": [
         "807",
         0

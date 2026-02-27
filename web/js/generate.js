@@ -6,10 +6,18 @@
  * 배치 큐 관리 UI도 이 모듈에서 제어합니다.
  */
 
-window.clientId = Math.random().toString(36).substring(2, 15);
-window.ws = new WebSocket(`ws://${window.location.host}/ws?clientId=${window.clientId}`);
-
 let jobQueue = [];
+
+window.clientId = Math.random().toString(36).substring(2, 15);
+
+/* HTTPS(Cloudflare 터널 등) 환경에서는 wss://, 그 외에는 ws:// 자동 선택 */
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+try {
+    window.ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws?clientId=${window.clientId}`);
+} catch (e) {
+    console.error("[AssetManager] WebSocket 연결 실패:", e);
+    window.ws = { addEventListener: () => { }, removeEventListener: () => { }, send: () => { } };
+}
 
 /** state_manager.js에서 저장된 큐 데이터를 복원하기 위한 브릿지 함수 */
 function restoreJobQueue(savedQueue) {
@@ -258,9 +266,38 @@ async function executeGeneration(posPrompt, negPrompt, filenamePrefix) {
         promptData[promptId].inputs.neg = negPrompt || "worst quality";
     }
 
-    const randomSeed = Math.floor(Math.random() * 10000000000000000);
-    if (ksamplerId) promptData[ksamplerId].inputs.seed = randomSeed;
-    if (upscalerSamplerId) promptData[upscalerSamplerId].inputs.seed = randomSeed;
+    /* ── 고급 설정 → 워크플로우 노드에 주입 ── */
+    const stepNodeId = findNodeIdByTitle(promptData, "[Main] Step");
+    const cfgNodeId = findNodeIdByTitle(promptData, "[Main] CFG");
+    const samplerSchedulerNodeId = findNodeIdByTitle(promptData, "[Main] Sampler, Scheduler");
+    const latentNodeId = findNodeIdByTitle(promptData, "[Main] Latent Image");
+
+    const advSteps = parseInt(document.getElementById('adv-steps')?.value || '28', 10);
+    const advCfg = parseFloat(document.getElementById('adv-cfg')?.value || '5');
+    const advSampler = document.getElementById('adv-sampler')?.value || 'euler_ancestral';
+    const advScheduler = document.getElementById('adv-scheduler')?.value || 'normal';
+    const advDimensions = document.getElementById('adv-dimensions')?.value || '1024 x 1024  (square)';
+
+    if (stepNodeId) promptData[stepNodeId].inputs.value = advSteps;
+    if (cfgNodeId) promptData[cfgNodeId].inputs.value = advCfg;
+    if (samplerSchedulerNodeId) {
+        promptData[samplerSchedulerNodeId].inputs.sampler_name = advSampler;
+        promptData[samplerSchedulerNodeId].inputs.scheduler = advScheduler;
+    }
+    if (latentNodeId) promptData[latentNodeId].inputs.dimensions = advDimensions;
+
+    /* 시드 처리: 랜덤 체크 시 난수 생성, 해제 시 사용자 지정 시드 사용 */
+    const isSeedRandom = document.getElementById('adv-seed-random')?.checked !== false;
+    const userSeed = document.getElementById('adv-seed')?.value;
+    const seedValue = (isSeedRandom || !userSeed) ? Math.floor(Math.random() * 10000000000000000) : parseInt(userSeed, 10);
+
+    if (ksamplerId) promptData[ksamplerId].inputs.seed = seedValue;
+    if (upscalerSamplerId) {
+        promptData[upscalerSamplerId].inputs.seed = seedValue;
+        /* 업스케일러 Steps UI 값 반영 (노드 109) */
+        const upscaleSteps = parseInt(document.getElementById('upscale-steps')?.value || '10', 10);
+        promptData[upscalerSamplerId].inputs.steps = upscaleSteps;
+    }
 
     /* 미리보기 전용 노드 제거 (서버 부하 방지) */
     const previewMainId = findNodeIdByTitle(promptData, "[Main] Image Preview");

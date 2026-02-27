@@ -143,7 +143,69 @@
                 </div>
 
                 <div class="form-section">
-                    <h3>2. 베이스 프롬프트 (Base Prompts)</h3>
+                    <h3 style="cursor: pointer; user-select: none;"
+                        onclick="const el=document.getElementById('adv-settings-body'); const arr=this.querySelector('.adv-arrow'); if(el.style.display==='none'){el.style.display='block';arr.textContent='▼';}else{el.style.display='none';arr.textContent='▶';} if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                        2. 고급 설정 (Advanced Settings) <span class="adv-arrow" style="font-size: 0.8em;">▶</span></h3>
+                    <div id="adv-settings-body" style="display: none;">
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">해상도:</label>
+                            <select id="adv-dimensions" style="flex:1;">
+                                <option value="1024 x 1024  (square)">1024 × 1024 (정사각형)</option>
+                                <option value="896 x 1152  (portrait)">896 × 1152 (세로)</option>
+                                <option value="832 x 1216  (portrait)">832 × 1216 (세로 2:3)</option>
+                                <option value="1152 x 896  (landscape)">1152 × 896 (가로)</option>
+                                <option value="1216 x 832  (landscape)">1216 × 832 (가로 3:2)</option>
+                                <option value="768 x 1344  (portrait)">768 × 1344 (세로 길쭉)</option>
+                                <option value="1344 x 768  (landscape)">1344 × 768 (가로 길쭉)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">샘플러:</label>
+                            <select id="adv-sampler" style="flex:1;">
+                                <option value="euler_ancestral">Euler Ancestral</option>
+                                <option value="euler">Euler</option>
+                                <option value="dpmpp_2m">DPM++ 2M</option>
+                                <option value="dpmpp_2m_sde">DPM++ 2M SDE</option>
+                                <option value="dpmpp_sde">DPM++ SDE</option>
+                                <option value="dpmpp_3m_sde">DPM++ 3M SDE</option>
+                                <option value="ddim">DDIM</option>
+                                <option value="uni_pc">UniPC</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">스케줄러:</label>
+                            <select id="adv-scheduler" style="flex:1;">
+                                <option value="normal">Normal</option>
+                                <option value="karras">Karras</option>
+                                <option value="exponential">Exponential</option>
+                                <option value="sgm_uniform">SGM Uniform</option>
+                                <option value="simple">Simple</option>
+                                <option value="ddim_uniform">DDIM Uniform</option>
+                                <option value="beta">Beta</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">Steps:</label>
+                            <input type="number" id="adv-steps" value="28" min="1" max="150" style="width:80px;">
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">CFG:</label>
+                            <input type="number" id="adv-cfg" value="5" min="1" max="30" step="0.5" style="width:80px;">
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">시드:</label>
+                            <input type="checkbox" id="adv-seed-random" checked
+                                onchange="document.getElementById('adv-seed').disabled=this.checked; if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <label for="adv-seed-random"
+                                style="margin:0; font-weight:normal; cursor:pointer;">랜덤</label>
+                            <input type="number" id="adv-seed" disabled placeholder="랜덤"
+                                style="flex:1; margin-left:8px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>3. 베이스 프롬프트 (Base Prompts)</h3>
                     <p style="font-size: 0.8em; color: #aaa; margin-top: -10px;">단일 생성과 배치 생성 모두에 기본으로 깔리는 프롬프트입니다.</p>
                     <div class="form-group"><label>공통 긍정 (Positive)</label><textarea id="base-pos"
                             placeholder="masterpiece, best quality..."></textarea></div>
@@ -152,7 +214,7 @@
                 </div>
 
                 <div class="form-section">
-                    <h3>3. 후처리 옵션 (Post-Processing)</h3>
+                    <h3>4. 후처리 옵션 (Post-Processing)</h3>
 
                     <div class="checkbox-group">
                         <input type="checkbox" id="toggle-upscale" onchange="toggleSubOptions('upscale-opts', this)">
@@ -169,6 +231,12 @@
                                 <option value="ESRGAN\4x_NMKD-Siax_200k.pth">ESRGAN 4x Siax</option>
                                 <option value="ESRGAN\2x-AnimeSharpV4_Fast_RCAN_PU.safetensors">2x-AnimeSharp</option>
                             </select>
+                        </div>
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">Upscale Steps</label>
+                            <input type="range" id="upscale-steps" min="1" max="50" value="10" style="flex:1;"
+                                oninput="document.getElementById('upscale-steps-val').innerText=this.value; if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <span id="upscale-steps-val" style="width:25px; text-align:right;">10</span>
                         </div>
                     </div>
 

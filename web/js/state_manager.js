@@ -111,7 +111,7 @@ class AppStateManager {
 
             /* generate.js의 let jobQueue는 로컬 변수이므로 getter 함수로 접근 */
             jobQueue: typeof getJobQueue === 'function' ? getJobQueue() : [],
-            pathTemplate: document.getElementById('batch-path-template')?.value || ''
+            pathTemplate: document.getElementById('path-template')?.value || ''
         };
     }
 
@@ -319,8 +319,8 @@ class AppStateManager {
                 restoreJobQueue(state.jobQueue);
             }
         }
-        if (state.pathTemplate && document.getElementById('batch-path-template')) {
-            document.getElementById('batch-path-template').value = state.pathTemplate;
+        if (state.pathTemplate && document.getElementById('path-template')) {
+            document.getElementById('path-template').value = state.pathTemplate;
         }
     }
 
